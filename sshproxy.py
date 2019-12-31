@@ -1658,7 +1658,11 @@ def start(host, user, pwd, port=1080, bg_run=False, timeout=30):
     if bg_run:                                                                                                                                                         
       options += ' -f'
     child = spawn('ssh %s -D %s -N %s@%s' % (options, str(port), str(user), str(host)), timeout=timeout)
-    child.expect('Password:')
+    try:
+        child.expect('Password:', timeout = 10)
+    except:
+        child.expect('password:', timeout = 10)
+    # child.expect('Password:')
     child.sendline(pwd)
     return child
   except Exception as identifier:

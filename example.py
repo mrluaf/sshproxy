@@ -3,9 +3,9 @@ import time
 
 
 myssh = sshproxy.start(
-  '14.161.1.99',
+  '123.20.183.218',
   'admin',
-  'P@ssw0rd',
+  '0l0ctyQh243O63uD',
   1080
 )
 print('SSH is Opened', myssh)
