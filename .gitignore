@@ -1,2 +1,2 @@
-sshproxy.log
-__pycache__
+*.log
+/__pycache__/*
