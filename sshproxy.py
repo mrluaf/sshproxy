@@ -4,7 +4,7 @@
 import sys
 if sys.platform != 'win32': # pragma: no cover
     raise ImportError (str(e) + """
-sys.platform != 'win32': SSH2SOCKS supports only Windows.""")
+sys.platform != 'win32': SSHProxy supports only Windows.""")
 
 #
 # Import built in modules
@@ -49,36 +49,35 @@ warnings.simplefilter("always", category=DeprecationWarning)
 deprecation_warning = '''
 ################################## WARNING ##################################
 {} is deprecated, and will be removed soon.
-Please contact me and report it at github.com/raczben/wexpect if you use it.
+Please contact me and report it at https://gitlab.com/mrluaf/sshproxy if you use it.
 ################################## WARNING ##################################
 '''
 
 # The version is handled by the package: pbr, which derives the version from the git tags.
 try:
-    __version__ = pkg_resources.require("wexpect")[0].version
+    __version__ = pkg_resources.require("sshproxy")[0].version
 except: # pragma: no cover
-    __version__ = '0.0.1.unkowndev0'
-__revision__ = '$Revision: 399 $'
+    __version__ = '0.0.1'
 
 __all__ = ['ExceptionPexpect', 'EOF', 'TIMEOUT', 'spawn', 'run', 'which',
-    'split_command_line', '__version__', '__revision__']
+    'split_command_line', '__version__', 'start']
 
 #
 # Create logger: We write logs only to file. Printing out logs are dangerous, because of the deep
 # console manipulation.
 #
-logger = logging.getLogger('wexpect')
+logger = logging.getLogger('sshproxy')
 if 'dev' in __version__ :
     logger.setLevel(logging.DEBUG)
 else:
     logger.setLevel(logging.INFO)
-fh = logging.FileHandler('wexpect.log', 'w', 'utf-8')
+fh = logging.FileHandler('sshproxy.log', 'w', 'utf-8')
 formatter = logging.Formatter('%(asctime)s - %(filename)s::%(funcName)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 # Test the logger
-logger.info('wexpect imported; logger working')
+logger.info('sshproxy imported; logger working')
 
 ####################################################################################################
 #
@@ -100,7 +99,7 @@ class ExceptionPexpect(Exception):
 
     def get_trace(self):
         """This returns an abbreviated stack trace with lines that only concern
-        the caller. In other words, the stack trace inside the Wexpect module
+        the caller. In other words, the stack trace inside the sshproxy module
         is not included. """
 
         tblist = traceback.extract_tb(sys.exc_info()[2])
@@ -109,9 +108,8 @@ class ExceptionPexpect(Exception):
         return ''.join(tblist)
 
     def __filter_not_wexpect(self, trace_list_item):
-        """This returns True if list item 0 the string 'wexpect.py' in it. """
 
-        if trace_list_item[0].find('wexpect.py') == -1:
+        if trace_list_item[0].find('sshproxy.py') == -1:
             return True
         else:
             return False
@@ -126,64 +124,6 @@ class TIMEOUT(ExceptionPexpect):
 
 
 def run (command, timeout=-1, withexitstatus=False, events=None, extra_args=None, logfile=None, cwd=None, env=None):
-
-    """
-    This function runs the given command; waits for it to finish; then
-    returns all output as a string. STDERR is included in output. If the full
-    path to the command is not given then the path is searched.
-
-    Note that lines are terminated by CR/LF (\\r\\n) combination even on
-    UNIX-like systems because this is the standard for pseudo ttys. If you set
-    'withexitstatus' to true, then run will return a tuple of (command_output,
-    exitstatus). If 'withexitstatus' is false then this returns just
-    command_output.
-
-    The run() function can often be used instead of creating a spawn instance.
-    For example, the following code uses spawn::
-
-        child = spawn('scp foo myname@host.example.com:.')
-        child.expect ('(?i)password')
-        child.sendline (mypassword)
-
-    The previous code can be replace with the following::
-
-    Examples
-    ========
-
-    Start the apache daemon on the local machine::
-
-        run ("/usr/local/apache/bin/apachectl start")
-
-    Check in a file using SVN::
-
-        run ("svn ci -m 'automatic commit' my_file.py")
-
-    Run a command and capture exit status::
-
-        (command_output, exitstatus) = run ('ls -l /bin', withexitstatus=1)
-
-    Tricky Examples
-    ===============
-
-    The following will run SSH and execute 'ls -l' on the remote machine. The
-    password 'secret' will be sent if the '(?i)password' pattern is ever seen::
-
-        run ("ssh username@machine.example.com 'ls -l'", events={'(?i)password':'secret\\n'})
-
-    The 'events' argument should be a dictionary of patterns and responses.
-    Whenever one of the patterns is seen in the command out run() will send the
-    associated response string. Note that you should put newlines in your
-    string if Enter is necessary. The responses may also contain callback
-    functions. Any callback is function that takes a dictionary as an argument.
-    The dictionary contains all the locals from the run() function, so you can
-    access the child spawn object or any other variable defined in run()
-    (event_count, child, and extra_args are the most useful). A callback may
-    return True to stop the current run process otherwise run() continues until
-    the next event. A callback may also return a string which will be sent to
-    the child. 'extra_args' is not used by directly run(). It provides a way to
-    pass data to a callback function through run() through the locals
-    dictionary passed to a callback. """
-
     if timeout == -1:
         child = spawn(command, maxread=2000, logfile=logfile, cwd=cwd, env=env)
     else:
@@ -230,113 +170,6 @@ def run (command, timeout=-1, withexitstatus=False, events=None, extra_args=None
 
 def spawn(command, args=[], timeout=30, maxread=2000, searchwindowsize=None, logfile=None, cwd=None, env=None,
           codepage=None):
-    """This is the most essential function. The command parameter may be a string that
-    includes a command and any arguments to the command. For example::
-
-        child = wexpect.spawn ('/usr/bin/ftp')
-        child = wexpect.spawn ('/usr/bin/ssh user@example.com')
-        child = wexpect.spawn ('ls -latr /tmp')
-
-    You may also construct it with a list of arguments like so::
-
-        child = wexpect.spawn ('/usr/bin/ftp', [])
-        child = wexpect.spawn ('/usr/bin/ssh', ['user@example.com'])
-        child = wexpect.spawn ('ls', ['-latr', '/tmp'])
-
-    After this the child application will be created and will be ready to
-    talk to. For normal use, see expect() and send() and sendline().
-
-    Remember that Wexpect does NOT interpret shell meta characters such as
-    redirect, pipe, or wild cards (>, |, or *). This is a common mistake.
-    If you want to run a command and pipe it through another command then
-    you must also start a shell. For example::
-
-        child = wexpect.spawn('/bin/bash -c "ls -l | grep LOG > log_list.txt"')
-        child.expect(wexpect.EOF)
-
-    The second form of spawn (where you pass a list of arguments) is useful
-    in situations where you wish to spawn a command and pass it its own
-    argument list. This can make syntax more clear. For example, the
-    following is equivalent to the previous example::
-
-        shell_cmd = 'ls -l | grep LOG > log_list.txt'
-        child = wexpect.spawn('/bin/bash', ['-c', shell_cmd])
-        child.expect(wexpect.EOF)
-
-    The maxread attribute sets the read buffer size. This is maximum number
-    of bytes that Wexpect will try to read from a TTY at one time. Setting
-    the maxread size to 1 will turn off buffering. Setting the maxread
-    value higher may help performance in cases where large amounts of
-    output are read back from the child. This feature is useful in
-    conjunction with searchwindowsize.
-
-    The searchwindowsize attribute sets the how far back in the incomming
-    seach buffer Wexpect will search for pattern matches. Every time
-    Wexpect reads some data from the child it will append the data to the
-    incomming buffer. The default is to search from the beginning of the
-    imcomming buffer each time new data is read from the child. But this is
-    very inefficient if you are running a command that generates a large
-    amount of data where you want to match The searchwindowsize does not
-    effect the size of the incomming data buffer. You will still have
-    access to the full buffer after expect() returns.
-
-    The logfile member turns on or off logging. All input and output will
-    be copied to the given file object. Set logfile to None to stop
-    logging. This is the default. Set logfile to sys.stdout to echo
-    everything to standard output. The logfile is flushed after each write.
-
-    Example log input and output to a file::
-
-        child = wexpect.spawn('some_command')
-        fout = file('mylog.txt','w')
-        child.logfile = fout
-
-    Example log to stdout::
-
-        child = wexpect.spawn('some_command')
-        child.logfile = sys.stdout
-
-    The logfile_read and logfile_send members can be used to separately log
-    the input from the child and output sent to the child. Sometimes you
-    don't want to see everything you write to the child. You only want to
-    log what the child sends back. For example::
-    
-        child = wexpect.spawn('some_command')
-        child.logfile_read = sys.stdout
-
-    To separately log output sent to the child use logfile_send::
-    
-        self.logfile_send = fout
-
-    The delaybeforesend helps overcome a weird behavior that many users
-    were experiencing. The typical problem was that a user would expect() a
-    "Password:" prompt and then immediately call sendline() to send the
-    password. The user would then see that their password was echoed back
-    to them. Passwords don't normally echo. The problem is caused by the
-    fact that most applications print out the "Password" prompt and then
-    turn off stdin echo, but if you send your password before the
-    application turned off echo, then you get your password echoed.
-    Normally this wouldn't be a problem when interacting with a human at a
-    real keyboard. If you introduce a slight delay just before writing then
-    this seems to clear up the problem. This was such a common problem for
-    many users that I decided that the default wexpect behavior should be
-    to sleep just before writing to the child application. 1/20th of a
-    second (50 ms) seems to be enough to clear up the problem. You can set
-    delaybeforesend to 0 to return to the old behavior. Most Linux machines
-    don't like this to be below 0.03. I don't know why.
-
-    Note that spawn is clever about finding commands on your path.
-    It uses the same logic that "which" uses to find executables.
-
-    If you wish to get the exit status of the child you must call the
-    close() method. The exit or signal status of the child will be stored
-    in self.exitstatus or self.signalstatus. If the child exited normally
-    then exitstatus will store the exit return code and signalstatus will
-    be None. If the child was terminated abnormally with a signal then
-    signalstatus will store the signal value and exitstatus will be None.
-    If you need more detail you can also read the self.status member which
-    stores the status returned by os.waitpid. You can interpret this using
-    os.WIFEXITED/os.WEXITSTATUS or os.WIFSIGNALED/os.TERMSIG. """
 
     log('=' * 80)
     log('Buffer size: %s' % maxread)
@@ -354,9 +187,6 @@ def spawn(command, args=[], timeout=30, maxread=2000, searchwindowsize=None, log
                              codepage)        
 
 class spawn_windows ():
-    """This is the main class interface for Wexpect. Use this class to start
-    and control child applications. """
-
     def __init__(self, command, args=[], timeout=30, maxread=60000, searchwindowsize=None, logfile=None, cwd=None, env=None,
                  codepage=None):
         """ The spawn_windows constructor. Do not call it directly. Use spawn(), or run() instead.
@@ -403,7 +233,7 @@ class spawn_windows ():
         if command is None:
             self.command = None
             self.args = None
-            self.name = '<wexpect factory incomplete>'
+            self.name = '<sshproxy factory incomplete>'
         else:
             self._spawn (command, args)
 
@@ -423,7 +253,7 @@ class spawn_windows ():
 
         s = []
         s.append(repr(self))
-        s.append('version: ' + __version__ + ' (' + __revision__ + ')')
+        s.append('version: ' + __version__)
         s.append('command: ' + str(self.command))
         s.append('args: ' + str(self.args))
         s.append('searcher: ' + str(self.searcher))
@@ -451,19 +281,6 @@ class spawn_windows ():
         return '\n'.join(s)
  
     def _spawn(self,command,args=[]):
-        """This starts the given command in a child process. This does all the
-        fork/exec type of stuff for a pty. This is called by __init__. If args
-        is empty then command will be parsed (split on spaces) and args will be
-        set to parsed arguments. """
-
-        # The pid and child_fd of this object get set by this method.
-        # Note that it is difficult for this method to fail.
-        # You cannot detect if the child process cannot start.
-        # So the only way you can tell if the child process started
-        # or not is to try to read from the file descriptor. If you get
-        # EOF immediately then it means that the child is already dead.
-        # That may not necessarily be bad because you may haved spawned a child
-        # that performs some task; creates no stdout output; and then dies.
 
         # If command is an int type then it may represent a file descriptor.
         if type(command) == type(0):
@@ -530,27 +347,11 @@ class spawn_windows ():
         ################################## WARNING ##################################
         waitnoecho() is faulty!
         Please contact me and report it at
-        https://github.com/raczben/wexpect/issues/18 if you use it.
+        https://gitlab.com/mrluaf/sshproxy if you use it.
         ################################## WARNING ##################################
         '''
         warnings.warn(faulty_method_warning, DeprecationWarning)
 
-        """This waits until the terminal ECHO flag is set False. This returns
-        True if the echo mode is off. This returns False if the ECHO flag was
-        not set False before the timeout. This can be used to detect when the
-        child is waiting for a password. Usually a child application will turn
-        off echo mode when it is waiting for the user to enter a password. For
-        example, instead of expecting the "password:" prompt you can wait for
-        the child to set ECHO off::
-
-            p = wexpect.spawn ('ssh user@example.com')
-            p.waitnoecho()
-            p.sendline(mypassword)
-
-        If timeout is None then this method to block forever until ECHO flag is
-        False.
-
-        """
 
         if timeout == -1:
             timeout = self.timeout
@@ -570,7 +371,7 @@ class spawn_windows ():
         ################################## WARNING ##################################
         setecho() is faulty!
         Please contact me and report it at
-        https://github.com/raczben/wexpect/issues/18 if you use it.
+        https://gitlab.com/mrluaf/sshproxy if you use it.
         ################################## WARNING ##################################
         '''
         warnings.warn(faulty_method_warning, DeprecationWarning)
@@ -585,7 +386,7 @@ class spawn_windows ():
         ################################## WARNING ##################################
         setecho() is faulty!
         Please contact me and report it at
-        https://github.com/raczben/wexpect/issues/18 if you use it.
+        https://gitlab.com/mrluaf/sshproxy if you use it.
         ################################## WARNING ##################################
         '''
         warnings.warn(faulty_method_warning, DeprecationWarning)
@@ -818,15 +619,6 @@ class spawn_windows ():
             self.wtty.terminate_child()
         
     def wait(self):
-        """This waits until the child exits. This is a blocking call. This will
-        not read any data from the child, so this will block forever if the
-        child has unread output and has terminated. In other words, the child
-        may have printed output then called exit(); but, technically, the child
-        is still alive until its output is read."""
-        
-        # We can't use os.waitpid under Windows because of 'permission denied' 
-        # exception? Perhaps if not running as admin (or UAC enabled under 
-        # Vista/7). Simply loop and wait for child to exit.
         while self.isalive():
             time.sleep(.05)  # Keep CPU utilization down
         
@@ -847,29 +639,6 @@ class spawn_windows ():
             return False
 
     def compile_pattern_list(self, patterns):
-
-        """This compiles a pattern-string or a list of pattern-strings.
-        Patterns must be a StringType, EOF, TIMEOUT, SRE_Pattern, or a list of
-        those. Patterns may also be None which results in an empty list (you
-        might do this if waiting for an EOF or TIMEOUT condition without
-        expecting any pattern).
-
-        This is used by expect() when calling expect_list(). Thus expect() is
-        nothing more than::
-
-             cpl = self.compile_pattern_list(pl)
-             return self.expect_list(cpl, timeout)
-
-        If you are using expect() within a loop it may be more
-        efficient to compile the patterns first and then call expect_list().
-        This avoid calls in a loop to compile_pattern_list()::
-
-             cpl = self.compile_pattern_list(my_pattern)
-             while some_condition:
-                ...
-                i = self.expect_list(clp, timeout)
-                ...
-        """
 
         if patterns is None:
             return []
@@ -895,112 +664,14 @@ class spawn_windows ():
         return compiled_pattern_list
 
     def expect(self, pattern, timeout = -1, searchwindowsize=None):
-
-        """This seeks through the stream until a pattern is matched. The
-        pattern is overloaded and may take several types. The pattern can be a
-        StringType, EOF, a compiled re, or a list of any of those types.
-        Strings will be compiled to re types. This returns the index into the
-        pattern list. If the pattern was not a list this returns index 0 on a
-        successful match. This may raise exceptions for EOF or TIMEOUT. To
-        avoid the EOF or TIMEOUT exceptions add EOF or TIMEOUT to the pattern
-        list. That will cause expect to match an EOF or TIMEOUT condition
-        instead of raising an exception.
-
-        If you pass a list of patterns and more than one matches, the first match
-        in the stream is chosen. If more than one pattern matches at that point,
-        the leftmost in the pattern list is chosen. For example::
-
-            # the input is 'foobar'
-            index = p.expect (['bar', 'foo', 'foobar'])
-            # returns 1 ('foo') even though 'foobar' is a "better" match
-
-        Please note, however, that buffering can affect this behavior, since
-        input arrives in unpredictable chunks. For example::
-
-            # the input is 'foobar'
-            index = p.expect (['foobar', 'foo'])
-            # returns 0 ('foobar') if all input is available at once,
-            # but returs 1 ('foo') if parts of the final 'bar' arrive late
-
-        After a match is found the instance attributes 'before', 'after' and
-        'match' will be set. You can see all the data read before the match in
-        'before'. You can see the data that was matched in 'after'. The
-        re.MatchObject used in the re match will be in 'match'. If an error
-        occurred then 'before' will be set to all the data read so far and
-        'after' and 'match' will be None.
-
-        If timeout is -1 then timeout will be set to the self.timeout value.
-
-        A list entry may be EOF or TIMEOUT instead of a string. This will
-        catch these exceptions and return the index of the list entry instead
-        of raising the exception. The attribute 'after' will be set to the
-        exception type. The attribute 'match' will be None. This allows you to
-        write code like this::
-
-                index = p.expect (['good', 'bad', wexpect.EOF, wexpect.TIMEOUT])
-                if index == 0:
-                    do_something()
-                elif index == 1:
-                    do_something_else()
-                elif index == 2:
-                    do_some_other_thing()
-                elif index == 3:
-                    do_something_completely_different()
-
-        instead of code like this::
-
-                try:
-                    index = p.expect (['good', 'bad'])
-                    if index == 0:
-                        do_something()
-                    elif index == 1:
-                        do_something_else()
-                except EOF:
-                    do_some_other_thing()
-                except TIMEOUT:
-                    do_something_completely_different()
-
-        These two forms are equivalent. It all depends on what you want. You
-        can also just expect the EOF if you are waiting for all output of a
-        child to finish. For example::
-
-                p = wexpect.spawn('/bin/ls')
-                p.expect (wexpect.EOF)
-                print p.before
-
-        If you are trying to optimize for speed then see expect_list().
-        """
-
         compiled_pattern_list = self.compile_pattern_list(pattern)
         return self.expect_list(compiled_pattern_list, timeout, searchwindowsize)
 
     def expect_list(self, pattern_list, timeout = -1, searchwindowsize = -1):
 
-        """This takes a list of compiled regular expressions and returns the
-        index into the pattern_list that matched the child output. The list may
-        also contain EOF or TIMEOUT (which are not compiled regular
-        expressions). This method is similar to the expect() method except that
-        expect_list() does not recompile the pattern list on every call. This
-        may help if you are trying to optimize for speed, otherwise just use
-        the expect() method.  This is called by expect(). If timeout==-1 then
-        the self.timeout value is used. If searchwindowsize==-1 then the
-        self.searchwindowsize value is used. """
-
         return self.expect_loop(searcher_re(pattern_list), timeout, searchwindowsize)
 
     def expect_exact(self, pattern_list, timeout = -1, searchwindowsize = -1):
-
-        """This is similar to expect(), but uses plain string matching instead
-        of compiled regular expressions in 'pattern_list'. The 'pattern_list'
-        may be a string; a list or other sequence of strings; or TIMEOUT and
-        EOF.
-
-        This call might be faster than expect() for two reasons: string
-        searching is faster than RE matching and it is possible to limit the
-        search to just the end of the input buffer.
-
-        This method is also useful when you don't want to have to worry about
-        escaping regular expression characters that you want to match."""
 
         if not isinstance(pattern_list, list): 
             pattern_list = [pattern_list]
@@ -1012,12 +683,6 @@ class spawn_windows ():
         return self.expect_loop(searcher_string(pattern_list), timeout, searchwindowsize)
 
     def expect_loop(self, searcher, timeout = -1, searchwindowsize = -1):
-
-        """This is the common loop used inside expect. The 'searcher' should be
-        an instance of searcher_re or searcher_string, which describes how and what
-        to search for in the input.
-
-        See expect() for other arguments, return value and exceptions. """
 
         self.searcher = searcher
 
@@ -1083,10 +748,7 @@ class spawn_windows ():
             self.match_index = None
             raise
 
-    def getwinsize(self):
-        """This returns the terminal window size of the child tty. The return
-        value is a tuple of (rows, cols). """
-        
+    def getwinsize(self):        
         return self.wtty.getwinsize()
 
     def setwinsize(self, r, c):
@@ -1188,7 +850,6 @@ class Wtty:
         si = win32process.GetStartupInfo()
         si.dwFlags = win32process.STARTF_USESHOWWINDOW
         si.wShowWindow = win32con.SW_HIDE
-        # Determine the directory of wexpect.py or, if we are running 'frozen'
         # (eg. py2exe deployment), of the packed executable
         dirname = os.path.dirname(sys.executable 
                                   if getattr(sys, 'frozen', False) else 
@@ -1226,8 +887,8 @@ class Wtty:
                                         os.path.join(os.path.dirname(sys.executable), 'python.exe'), 
                                         ' '.join(pyargs), 
                                         "import sys; sys.path = %r + sys.path;"
-                                        "args = %r; import wexpect;"
-                                        "wexpect.ConsoleReader(wexpect.join_args(args), %i, %i, cp=%i, logdir=%r)" % (spath, args, pid, tid, cp, logdir))
+                                        "args = %r; import sshproxy;"
+                                        "sshproxy.ConsoleReader(sshproxy.join_args(args), %i, %i, cp=%i, logdir=%r)" % (spath, args, pid, tid, cp, logdir))
                      
         
         self.__oproc, _, self.conpid, self.__otid = win32process.CreateProcess(None, commandLine, None, None, False, 
@@ -1555,7 +1216,7 @@ class Wtty:
         ################################## WARNING ##################################
         setecho() is faulty!
         Please contact me and report it at
-        https://github.com/raczben/wexpect/issues/18 if you use it.
+        https://gitlab.com/mrluaf/sshproxy if you use it.
         ################################## WARNING ##################################
         '''
         warnings.warn(faulty_method_warning, DeprecationWarning)
@@ -1580,7 +1241,7 @@ class Wtty:
         ################################## WARNING ##################################
         getecho() is faulty!
         Please contact me and report it at
-        https://github.com/raczben/wexpect/issues/18 if you use it.
+        https://gitlab.com/mrluaf/sshproxy if you use it.
         ################################## WARNING ##################################
         '''
         warnings.warn(faulty_method_warning, DeprecationWarning)
@@ -1755,21 +1416,6 @@ class ConsoleReader: # pragma: no cover
    
 class searcher_string (object):
 
-    """This is a plain string search helper for the spawn.expect_any() method.
-
-    Attributes:
-
-        eof_index     - index of EOF, or -1
-        timeout_index - index of TIMEOUT, or -1
-
-    After a successful match by the search() method the following attributes
-    are available:
-
-        start - index into the buffer, first byte of match
-        end   - index into the buffer, first byte after match
-        match - the matching string itself
-    """
-
     def __init__(self, strings):
 
         """This creates an instance of searcher_string. This argument 'strings'
@@ -1804,30 +1450,8 @@ class searcher_string (object):
 
     def search(self, buffer, freshlen, searchwindowsize=None):
 
-        """This searches 'buffer' for the first occurence of one of the search
-        strings.  'freshlen' must indicate the number of bytes at the end of
-        'buffer' which have not been searched before. It helps to avoid
-        searching the same, possibly big, buffer over and over again.
-
-        See class spawn for the 'searchwindowsize' argument.
-
-        If there is a match this returns the index of that string, and sets
-        'start', 'end' and 'match'. Otherwise, this returns -1. """
-
         absurd_match = len(buffer)
         first_match = absurd_match
-
-        # 'freshlen' helps a lot here. Further optimizations could
-        # possibly include:
-        #
-        # using something like the Boyer-Moore Fast String Searching
-        # Algorithm; pre-compiling the search through a list of
-        # strings into something that can scan the input once to
-        # search for all N strings; realize that if we search for
-        # ['bar', 'baz'] and the input is '...foo' we need not bother
-        # rescanning until we've read three more bytes.
-        #
-        # Sadly, I don't know enough about this interesting topic. /grahn
         
         for index, s in self._strings:
             if searchwindowsize is None:
@@ -1850,29 +1474,7 @@ class searcher_string (object):
 
 class searcher_re (object):
 
-    """This is regular expression string search helper for the
-    spawn.expect_any() method.
-
-    Attributes:
-
-        eof_index     - index of EOF, or -1
-        timeout_index - index of TIMEOUT, or -1
-
-    After a successful match by the search() method the following attributes
-    are available:
-
-        start - index into the buffer, first byte of match
-        end   - index into the buffer, first byte after match
-        match - the re.match object returned by a succesful re.search
-
-    """
-
     def __init__(self, patterns):
-
-        """This creates an instance that searches for 'patterns' Where
-        'patterns' may be a list or other sequence of compiled regular
-        expressions, or the EOF or TIMEOUT types."""
-
         self.eof_index = -1
         self.timeout_index = -1
         self._searches = []
@@ -1901,15 +1503,6 @@ class searcher_re (object):
         return '\n'.join(ss)
 
     def search(self, buffer, freshlen, searchwindowsize=None):
-
-        """This searches 'buffer' for the first occurence of one of the regular
-        expressions. 'freshlen' must indicate the number of bytes at the end of
-        'buffer' which have not been searched before.
-
-        See class spawn for the 'searchwindowsize' argument.
-        
-        If there is a match this returns the index of that string, and sets
-        'start', 'end' and 'match'. Otherwise, returns -1."""
 
         absurd_match = len(buffer)
         first_match = absurd_match
@@ -1967,7 +1560,7 @@ def log(e, suffix='', logdir=None):
         except (OSError, WindowsError):
             pass
     if os.path.isdir(logdir) and os.access(logdir, os.W_OK):
-        logfile = os.path.join(logdir, 'wexpect%s.log' % suffix)
+        logfile = os.path.join(logdir, 'sshproxy%s.log' % suffix)
         if os.path.isfile(logfile):
             try:
                 logstat = os.stat(logfile)
@@ -2002,8 +1595,6 @@ def log(e, suffix='', logdir=None):
             fout.close()   
 
 def join_args(args):
-    """Joins arguments into a command line. It quotes all arguments that contain
-    spaces or any of the characters ^!$%&()[]{}=;'+,`~"""
     commandline = []
     for arg in args:
         if re.search('[\^!$%&()[\]{}=;\'+,`~\s]', arg):
@@ -2012,10 +1603,6 @@ def join_args(args):
     return ' '.join(commandline)
 
 def split_command_line(command_line, escape_char = '^'):
-    """This splits a command line into a list of arguments. It splits arguments
-    on spaces, but handles embedded quotes, doublequotes, and escaped
-    characters. It's impossible to do this with a regular expression, so I
-    wrote a little state machine to parse the command line. """
 
     arg_list = []
     arg = ''
@@ -2065,6 +1652,14 @@ def split_command_line(command_line, escape_char = '^'):
         arg_list.append(arg)
     return arg_list
 
-
-
-
+def start(host, user, pwd, port=1080, bg_run=False, timeout=30):
+  try:
+    options = '-q -oStrictHostKeyChecking=no -oPubkeyAuthentication=no'
+    if bg_run:                                                                                                                                                         
+      options += ' -f'
+    child = spawn('ssh %s -D %s -N %s@%s' % (options, str(port), str(user), str(host)), timeout=timeout)
+    child.expect('Password:')
+    child.sendline(pwd)
+    return child
+  except Exception as identifier:
+    raise
