@@ -26,6 +26,18 @@ And of course SSH Proxy itself is open source with a [public repository][sshprox
 - Install OpenSSH in Window: https://jcutrer.com/windows/install-openssh-on-windows10
 - SSH Proxy requires Python 3.x to run.
 
+### Useage
+```python
+ssh.start(host, user, pwd, port=1080, bg_run=False, timeout=30)
+```
+
+- host: Your host
+- user: Username to login SSH
+- pwd : Password of SSH
+- port: That is Socks Port in Local
+- bg_run: Background running
+- timeout: Time wait for login SSH and type password 
+
 License
 ----
 
